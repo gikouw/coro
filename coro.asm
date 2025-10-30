@@ -24,6 +24,7 @@ macro restore_stack_and_pop_regs coro_ptr {
 
 section '.text' executable 
 
+public init_main_coro
 public coroutine_register
 public yield
 
@@ -106,11 +107,12 @@ coroutine_register:
 
     mov rsp, rax                        ;switch to coroutine’s stack
     ;---------------regsitering-coro-stack------------------
-    push implicit_yield             ;return address when entry function finishes
-    push rdi                        ;jmp back addr for yield on ret when *becoming the switch target for first time* 
-                                    ;as yield expects it, it will be pushed by calling yield() for next turn
+    lea rax, [implicit_yield]       ;return address when coro function finishes
+    push rax
+    push rdi                        ;fnaddr, jmp back addr for yield on ret when *becoming the switch target for first time* 
+                                    ;as yield expects it, it will be pushed by *call* derective on yield() for next turn
 
-    sub rsp, 40                     ;similar reason^
+    sub rsp, 40                     ;expected by yield
 
     mov [r12 + Coro_offset_rsp], rsp
     mov [r12 + Coro_offset_rbp], rbp   
