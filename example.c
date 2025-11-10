@@ -9,6 +9,7 @@ void func1(void) {
         printf("[%d] hello from fn 1\n", i);
         yield();
     }
+    printf("fn 1 finished\n");
 }
 
 void func3(void) {
@@ -16,6 +17,7 @@ void func3(void) {
         printf("[%d] hello from fn 3\n", i);
         yield();
     }
+    printf("fn 3 finished\n");
 }
 
 void func2(void) {
@@ -23,11 +25,12 @@ void func2(void) {
         printf("[%d] hello from fn 2\n", i);
         yield();
     } 
+    printf("fn 2 finished\n");
 }
 
 int main(void)
 {
-    printf("start");
+    printf("start\n");
     coroutine_register(func1);
     coroutine_register(func2);
     coroutine_register(func3);

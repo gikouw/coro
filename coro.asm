@@ -1,7 +1,5 @@
 format ELF64 
 
-;TODO: maybe this can be possible with just singly linked list  
-
 macro push_regs_and_save_stack coro_ptr {
     push rbx
     push r12
@@ -24,16 +22,14 @@ macro restore_stack_and_pop_regs coro_ptr {
 
 section '.text' executable 
 
-public init_main_coro
 public coroutine_register
 public yield
 
 Coro_offset_rsp        = 0
 Coro_offset_rbp        = 8
 Coro_offset_next       = 16
-Coro_offset_prev       = 24
-Coro_offset_stack_leftmost = 32
-Coro_size              = 40
+Coro_offset_stack_leftmost = 24
+Coro_size              = 32
 STACK_SIZE = (1*1024*1024)
 
 alloc:                      ; rdi = size
@@ -63,6 +59,7 @@ alloc_stack:                ; rdi = size
 
 init_main_coro:
     mov rdi, Coro_size
+
     call alloc           
     mov rdi, rax 
 
@@ -72,9 +69,9 @@ init_main_coro:
     mov qword [rdi + Coro_offset_stack_leftmost], 0 ;redundant. main_coro will never use this 
 
     mov [rdi + Coro_offset_next], rdi
-    mov [rdi + Coro_offset_prev], rdi
 
     mov [current], rdi
+    mov [prev], rdi
     mov byte [is_main_initialized], 1
     ret
 
@@ -123,10 +120,8 @@ coroutine_register:
     mov rax, [current]            
     mov rcx, [rax + Coro_offset_next]
 
-    mov [r12 + Coro_offset_prev], rax
     mov [r12 + Coro_offset_next], rcx
     mov [rax + Coro_offset_next], r12
-    mov [rcx + Coro_offset_prev], r12
 
     ;TODO: write the reason for not updating "current" here
 
@@ -143,6 +138,8 @@ yield:                                  ;expects already restored stack
 
     mov rax, [current]
     push_regs_and_save_stack rax
+
+    mov [prev], rax
 
     mov rax, [rax + Coro_offset_next]
     mov [current], rax
@@ -167,14 +164,12 @@ macro free_coro addr {
 implicit_yield:
     mov rax, [current]
 
-    mov rcx, [rax + Coro_offset_prev]    ; current_prev
-    mov rdx, [rax + Coro_offset_next]    ; current_next
+    mov rdx, [rax + Coro_offset_next]    ;next
 
-    ;unlinking current 
-    mov [rcx + Coro_offset_next], rdx    ; current_prev_next = current_next
-    mov [rdx + Coro_offset_prev], rcx    ; current_next_prev = current_prex
-    
-    mov [current], rdx                   ;new current
+    mov [current], rdx                   ;current -> next
+
+    mov rcx, [prev]
+    mov [rcx + Coro_offset_next], rdx    ;make prev.next -> new current
 
     free_stack [rax + Coro_offset_stack_leftmost]
     free_coro rax
@@ -187,3 +182,4 @@ is_main_initialized db 0
 
 section '.bss' writable 
 current rq 1
+prev rq 1
